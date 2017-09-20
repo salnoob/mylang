@@ -6,6 +6,33 @@ declare -A labels
 
 out=""
 
+function handle_jump() {
+
+      args="$2"
+      if [[ $args =~ ^[0-9]+$ ]]; then
+        # Number
+        # Should be in hex already
+        num=$(printf "%04x" 0x$args)
+        echo "NUM: " $num
+        out+="\x"${num%[0-9a-f][0-9a-f]}"\x"${num%[0-9a-f][0-9a-f]}
+      else
+        # Label
+        if [ ${labels[$args]+garbage} ]; then
+          # Label was found
+          out+="\x"${labels[$args]%[0-9a-f][0-9a-f]}"\x"${labels[$args]#[0-9a-f][0-9a-f]}
+          echo "Jump to " ${labels[$args]}
+          echo "\x"${labels[$args]%[0-9a-f][0-9a-f]}"\x"${labels[$args]#[0-9a-f][0-9a-f]}
+        else
+          if [ $1 -eq 1 ]; then
+            # Placeholder
+            out+="\x00\x00"
+          else
+            echo "THERE was a label error"
+          fi
+        fi
+      fi
+}
+
 function handle_rm1 () {
   local args="$1"
   fword=${args%%,*}
@@ -115,7 +142,7 @@ function assem() {
     elif [ ${opt:0:1} == ":" ]; then
       if [ $1 -eq 1 ]; then
         # Label
-        labels[${opt##:}]=$(printf "%x" $(echo -ne "${out}" | wc -c))
+        labels[${opt##:}]=$(printf "%04x" $(echo -ne "${out}" | wc -c))
         echo "LABEL: $opt at ${labels[${opt##:}]}"
       fi
     elif [ $opt == "np" ]; then
@@ -161,43 +188,15 @@ function assem() {
       handle_rm2 "$args"
     elif [ $opt == "jz" ]; then
       out+="\x40"
-      if [[ $args =~ ^[0-9]+$ ]]; then
-        # Number
-        out+="\x"$args
-      else
-        # Label
-        if [ ${labels[$args]+garbage} ]; then
-          # Label was found
-          out+="\x"${labels[$args]}
-        else
-          if [ $1 -eq 1 ]; then
-            # Placeholder
-            out+="\x00"
-          else
-            echo "THERE was a label error"
-          fi
-        fi
-      fi
+      handle_jump $1 "$args"
     elif [ $opt == "jp" ]; then
       out+="\x42"
-      if [[ $args =~ ^[0-9]+$ ]]; then
-        # Number
-        out+="\x"$args
-      else
-          # Label
-          if [ ${labels[$args]+garbage} ]; then
-            # Label was found
-            out+="\x"${labels[$args]}
-          else
-            if [ $1 -eq 1 ]; then
-              out+="\x00"
-            else
-              echo "THERE was a label error"
-            fi
-          fi
-      fi
+      handle_jump $1 "$args"
+    elif [ $opt == "jn" ]; then
+      out+="\x44"
+      handle_jump $1 "$args"
     else
-        echo "Unexpected opt"
+        echo "Unexpected opt" $opt
         exit 1
     fi	
   done

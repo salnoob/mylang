@@ -203,17 +203,24 @@ while True:
 		# Neg
 		handle_un_op(ins)
 	elif ins == 0x40:
-		byte = getbyte()
-		codeprint("jz to byte: ",byte)
+		loc = getword()
+		codeprint("jz to byte: ",loc)
 		if regs["cmp_res"]: 
-			fd.seek(byte); 
+			fd.seek(loc); 
 			codeprint("Seeking to byte",fd.tell())
 		else: pass
 	elif ins == 0x42:
-		byte = getbyte()
-		codeprint("jp to byte: ",byte)
-		fd.seek(byte); 
+		loc = getword()
+		codeprint("jp to byte: ",loc)
+		fd.seek(loc); 
 		codeprint("Seeking to byte",fd.tell())
+	elif ins == 0x44:
+		loc = getword()
+		codeprint("jn to byte: ",loc)
+		if not regs["cmp_res"]: 
+			fd.seek(loc); 
+			codeprint("Seeking to byte",fd.tell())
+		else: pass
 	elif ins == 0x60:
 		x = getword()
 		y = getword()
@@ -226,7 +233,7 @@ while True:
 	elif ins == 0x70:
 		displayvideo()
 	else:
-		print("Invalid instruction")
+		print("Invalid instruction ",ins)
 		exit(1)
 
 	if debug:
