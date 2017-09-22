@@ -39,25 +39,25 @@ def handle_bin_op(code):
 		dreg=getreg()
 		d=regs[dreg]
 	  elif opts[dst] == "heap": 
-		didx=getbyte()
+		didx=getword()
 		if code not in  [0x10]:
 			d=heap[didx]
 	  elif opts[dst] == "stack":
-		didx=getbyte()
+		didx=getword()
 		if code not in  [0x10]:
 			d=stack[didx]
 	  elif opts[dst] == "imm": 
 		print("Cannot have imm as dst")
 		exit(1)
-	else: val=getbyte()
+	else: val=getword()
 
 	src=getbyte()
 	if src in opts.keys():
 	  if opts[src] == "regs": s=regs[getreg()]
-	  elif opts[src] == "heap": s=heap[getbyte()]
-	  elif opts[src] == "stack": s=stack[getbyte()]
-	  elif opts[src] == "imm": s=getbyte()
-	else: val=getbyte()
+	  elif opts[src] == "heap": s=heap[getword()]
+	  elif opts[src] == "stack": s=stack[getword()]
+	  elif opts[src] == "imm": s=getword()
+	else: val=getword()
     
 	if code == 0x06:
 		codeprint("sub",d,"-",s)
@@ -81,6 +81,9 @@ def handle_bin_op(code):
 	elif code == 0x14:
 		codeprint("and ",d,s)
 		res=d&s
+	elif code == 0x15:
+		codeprint("or ",d,s)
+		res=d|s
 
 	if code != 0x24:
 		if opts[dst] == "regs": regs[dreg]=res; codeprint("regs[",dreg,"] = ",res)
@@ -99,17 +102,17 @@ def handle_un_op(code):
 			dreg=getreg()
 			d=regs[dreg]
 		elif opts[dst] == "heap": 
-			didx=getbyte()
+			didx=getword()
 			if code not in [0x18]:
 				d=heap[didx]
 		elif opts[dst] == "stack":
-			didx=getbyte()
+			didx=getword()
 			if code not in [0x18]:
 				d=stack[didx]
 		elif opts[dst] == "imm":
-			d=getbyte()
+			d=getword()
 	else:
-		d=getbyte()
+		d=getword()
 
 	if code == 0x16:
 		res=stack.append(d)
@@ -183,6 +186,9 @@ while True:
 		handle_bin_op(ins)
 	elif ins == 0x14:
 		# And
+		handle_bin_op(ins)
+	elif ins == 0x15:
+		# Or
 		handle_bin_op(ins)
 	elif ins == 0x16:
 		# Push

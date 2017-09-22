@@ -6,6 +6,12 @@ declare -A labels
 
 out=""
 
+function get_split() {
+  local num="$1"
+  num=$(printf "%04x" $num | tail -c 4)
+
+  echo  "\x${num%[0-9a-f][0-9a-f]}\x${num#[0-9a-f][0-9a-f]}" 
+}
 function handle_jump() {
 
       args="$2"
@@ -14,7 +20,7 @@ function handle_jump() {
         # Should be in hex already
         num=$(printf "%04x" 0x$args)
         echo "NUM: " $num
-        out+="\x"${num%[0-9a-f][0-9a-f]}"\x"${num%[0-9a-f][0-9a-f]}
+        out+="\x"${num%[0-9a-f][0-9a-f]}"\x"${num#[0-9a-f][0-9a-f]}
       else
         # Label
         if [ ${labels[$args]+garbage} ]; then
@@ -53,16 +59,17 @@ function handle_rm1 () {
         out+="\x01"
         idx=${fword#H:}
         echo $idx
-        out+="\x"${idx}
+        #out+="\x"${idx}
+        out+=$(get_split ${idx})
       ;;
       S) echo "Stack"
         out+="\x02"
         idx=${fword#S:}
-        out+="\x"${idx}
+        out+=$(get_split ${idx})
       ;;
-      [0-9]) echo "Imm"
+      [\-0-9]) echo "Imm"
         out+="\x03"
-        out+="\x"$x
+        out+=$(get_split "$fword")
       ;;
       *) echo "Unhandled";;
     esac
@@ -102,8 +109,8 @@ function handle_rm2 () {
         else
           idx=${sword#H:}
         fi
-        echo $idx
-        out+="\x"${idx}
+        echo "IDX: "$idx
+        out+=$(get_split ${idx})
       ;;
       S) echo "Stack"
         out+="\x02"
@@ -112,15 +119,16 @@ function handle_rm2 () {
         else
           idx=${sword#S:}
         fi
-        out+="\x"${idx}
+        out+=$(get_split ${idx})
       ;;
-      [0-9]) echo "Imm"
+      [\-0-9]) echo "Imm"
         if [ $count == 1 ]; then
           echo "Cannot have immediate as dest"
           exit 1
         fi
         out+="\x03"
-        out+="\x"$x
+        out+=$(get_split "$sword")
+        #out+="\x"${sword}
       ;;
       *) echo "Unhandled";;
     esac
@@ -164,6 +172,9 @@ function assem() {
       handle_rm2 "$args"
     elif [ $opt == "an" ]; then
       out+="\x14"
+      handle_rm2 "$args"
+    elif [ $opt == "or" ]; then
+      out+="\x15"
       handle_rm2 "$args"
     elif [ $opt == "nt" ]; then
       out+="\x28"
