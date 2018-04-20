@@ -6,6 +6,29 @@ declare -A labels
 
 out=""
 
+function handle_rm2_str() {
+  local args="$1"
+  fword=${args%%,*}
+  sword=${args##*,}
+  fchar="${fword:0:1}"
+  schar="${sword:0:1}"
+
+  declare -i count=0
+
+    case $fchar in
+      H) echo "Heap"
+        out+="\x01"
+        idx=${fword#H:}
+        echo "IDX: "$idx
+        out+=$(get_split ${idx})
+      ;;
+      *) echo "Unhandled string instruction";;
+    esac
+
+    out+="${sword}"
+
+}
+
 function get_split() {
   local num="$1"
   num=$(printf "%04x" $num | tail -c 4)
@@ -170,11 +193,23 @@ function assem() {
     elif [ $opt == "mv" ]; then
       out+="\x10"
       handle_rm2 "$args"
+    elif [ $opt == "ls" ]; then
+      out+="\x90"
+      handle_rm2_str "$args"
+    elif [ $opt == "xr" ]; then
+      out+="\x13"
+      handle_rm2 "$args"
     elif [ $opt == "an" ]; then
       out+="\x14"
       handle_rm2 "$args"
     elif [ $opt == "or" ]; then
       out+="\x15"
+      handle_rm2 "$args"
+    elif [ $opt == "sl" ]; then
+      out+="\x17"
+      handle_rm2 "$args"
+    elif [ $opt == "sr" ]; then
+      out+="\x19"
       handle_rm2 "$args"
     elif [ $opt == "nt" ]; then
       out+="\x28"
@@ -205,6 +240,12 @@ function assem() {
       handle_jump $1 "$args"
     elif [ $opt == "jn" ]; then
       out+="\x44"
+      handle_jump $1 "$args"
+    elif [ $opt == "jg" ]; then
+      out+="\x43"
+      handle_jump $1 "$args"
+    elif [ $opt == "jl" ]; then
+      out+="\x41"
       handle_jump $1 "$args"
     else
         echo "Unexpected opt" $opt

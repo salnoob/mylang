@@ -16,18 +16,50 @@ EOF = fd.tell()
 fd.seek(0)
 
 opts={0:"regs",1:"heap",2:"stack",3:"imm"}
-regs = {"a":0,"b":0,"c":0,"d":0,"cmp_res":0}
+regs = {"a":0,"b":0,"c":0,"d":0,"cmp_res":0,"cmp_g":0}
 stack = list()
 heap = dict()
 video = list()
 
 def displayvideo(): pass
 
+def getstring(): 
+	string=""
+	c=fd.read(1)
+	if c != "'": codeprint("Invalid string");exit(1)
+	c=fd.read(1)
+	string+=c
+	while c != "'" and fd.tell() != EOF:
+	  c=fd.read(1)
+	  if c != "'": string+=c
+	return string
+  
+
 def codeprint(*s):
 	global printcode
 	if not printcode: return
 	print(s)
 	
+def handle_bin_op_str(code):
+    
+	global opts,stack,heap,regs
+
+	dst=getbyte()
+
+	if dst in opts.keys():
+		if opts[dst] == "heap": 
+			didx=getword()
+	else: val=getword()
+
+    ## Get src string
+	s=getstring()
+    
+	if code == 0x90:
+		codeprint("load string",s)
+		res=s
+
+	if opts[dst] == "heap": heap[didx]=res; codeprint("heap[",didx,"] = ",res)
+
 def handle_bin_op(code):
     
 	global opts,stack,heap,regs
@@ -77,13 +109,24 @@ def handle_bin_op(code):
 	elif code == 0x24:
 		codeprint("cmp ",d,s)
 		res=(d==s)
+		res2=(d>s)
 		regs["cmp_res"]=res
+		regs["cmp_g"]=res2
 	elif code == 0x14:
 		codeprint("and ",d,s)
 		res=d&s
 	elif code == 0x15:
 		codeprint("or ",d,s)
 		res=d|s
+	elif code == 0x13:
+		codeprint("xor ",d,s)
+		res=d^s
+	elif code == 0x17:
+		codeprint("shl ",d,s)
+		res=d<<s
+	elif code == 0x19:
+		codeprint("shr ",d,s)
+		res=d>>s
 
 	if code != 0x24:
 		if opts[dst] == "regs": regs[dreg]=res; codeprint("regs[",dreg,"] = ",res)
@@ -184,6 +227,9 @@ while True:
 	elif ins == 0x24:
 		# Cmp 
 		handle_bin_op(ins)
+	elif ins == 0x13:
+		# Xor
+		handle_bin_op(ins)
 	elif ins == 0x14:
 		# And
 		handle_bin_op(ins)
@@ -193,6 +239,12 @@ while True:
 	elif ins == 0x16:
 		# Push
 		handle_un_op(ins)
+	elif ins == 0x17:
+		# Shl
+		handle_bin_op(ins)
+	elif ins == 0x19:
+		# Shr
+		handle_bin_op(ins)
 	elif ins == 0x18:
 		# Pop
 		handle_un_op(ins)
@@ -214,23 +266,35 @@ while True:
 		if regs["cmp_res"]: 
 			fd.seek(loc); 
 			codeprint("Seeking to byte",fd.tell())
-		else: pass
 	elif ins == 0x42:
 		loc = getword()
 		codeprint("jp to byte: ",loc)
 		fd.seek(loc); 
 		codeprint("Seeking to byte",fd.tell())
+	elif ins == 0x41:
+		loc = getword()
+		codeprint("jl to byte: ",loc)
+		if not regs["cmp_res"]: 
+			if not regs["cmp_g"]:
+				fd.seek(loc); 
+				codeprint("Seeking to byte",fd.tell())
+	elif ins == 0x43:
+		loc = getword()
+		codeprint("jg to byte: ",loc)
+		if not regs["cmp_res"]: 
+			if regs["cmp_g"]:
+				fd.seek(loc); 
+				codeprint("Seeking to byte",fd.tell())
 	elif ins == 0x44:
 		loc = getword()
 		codeprint("jn to byte: ",loc)
 		if not regs["cmp_res"]: 
 			fd.seek(loc); 
 			codeprint("Seeking to byte",fd.tell())
-		else: pass
 	elif ins == 0x60:
 		x = getword()
 		y = getword()
-		color = getbyte()
+		color = set(getbyte(),getbyte(),getbyte())
 		if None in [x,y,color]: 
 			print("X, Y, or Color is missing")
 			exit(1)
@@ -238,6 +302,9 @@ while True:
 		video.append([x,y,color])
 	elif ins == 0x70:
 		displayvideo()
+	elif ins == 0x90:
+		# load string
+		handle_bin_op_str(ins)
 	else:
 		print("Invalid instruction ",ins)
 		exit(1)
